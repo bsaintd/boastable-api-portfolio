@@ -1,0 +1,6 @@
+node_modules
+.env*
+*.todo
+data
+Dockerfile
+codeship.aes

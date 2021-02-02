@@ -1,0 +1,66 @@
+version: '2'
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.local
+    command: npm run debug
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+    links:
+      - mongo
+    depends_on:
+      - mongo
+    volumes:
+      - .:/usr/src/app
+    networks:
+      - boastable-network
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      JWT_SECRET: asdfasdfasdf
+      MONGODB: mongodb://mongo:27017/test
+      STRIPE_SECRET: sk_test_rdGZd89c98zORbqI0HYpAcW9
+      SUPPORT_EMAIL: support@boastable.co
+      APP_NAME: Boastable
+      PRO_SMS_REMAINING: 1000
+      FRONTEND_HOST: web:8080
+      STRIPE_PRO_PLAN_ID: plan_DiN1n9M9XoJBj6
+      STRIPE_ENTERPRISE_PLAN_ID: pro_plan
+      TWILIO_SID: AC86a57b5465c2a84255d6f5ef5236b5f5
+      TWILIO_AUTH_TOKEN: fa66f0469b9a695ac10a700653b200a4
+      TWILIO_SMS_NUMBER: +13213391391
+      FRONTEND_HOST: http://web:8080
+      TWILIO_DEMO_SMS_NUMBER: "+13238971767"
+      STRIPE_PLAN_ID: plan_DiN1n9M9XoJBj6
+      STRIPE_PRO_PLAN_ID: plan_DiN1n9M9XoJBj6
+      STRIPE_ENTERPRISE_PLAN_ID: enterprise_plan
+      MAILCHIMP_API_KEY: d18a3babb652730c48c9312ff6417f87-us19
+      DRIP_CAMPAIGN_LIST_ID: e18fa5cc47
+      PRO_SMS_REMAINING: "1000"
+    networks:
+      - boastable-network
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ~/data/boastable-local:/data/db
+    networks:
+      - boastable-network
+  web:
+    image: boastable-app
+    command: npm start
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+    environment:
+      ROOT_API: http://api:3000
+      NODE_ENV: development
+    networks:
+      - boastable-network
+networks:
+  boastable-network:
+    driver: bridge

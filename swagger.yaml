@@ -1,0 +1,1483 @@
+swagger: '2.0'
+info:
+  description: How to use the Boastable server.
+  version: 1.0.0
+  title: Boastable API
+  contact:
+    email: ryan@fueledonbacon.com
+host: localhost:3000
+basePath: /
+tags:
+  - name: auth
+    description: Security
+  - name: membership
+    description: Membership document linking application and stripe data
+  - name: stripe
+    description: Access to Stripe api functions
+  - name: user
+    description: The user document
+  - name: communication
+    description: 'Communication integrations (Twilio, Sendgrid)'
+  - name: questions
+    description: Questions businesses want to ask customers
+  - name: answers
+    description: Answers to questions from customers
+  - name: customers
+    description: Customer data
+  - name: actions
+    description: Actions taken by customers
+schemes:
+  - http
+paths:
+  /login:
+    post:
+      tags:
+        - auth
+      summary: Create a new business/user profile
+      description: ''
+      operationId: login
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Allows a valid user to login
+          required: true
+          schema:
+            $ref: '#/definitions/CreateAuthBody'
+      responses:
+        '200':
+          description: JWT token
+          schema:
+            $ref: '#/definitions/TokenResponse'
+        '401':
+          description: Invalid credentials
+  /register:
+    post:
+      tags:
+        - membership
+      summary: Registers a new client
+      description: 'Located in membership because of the many membership operations that take place on the route. Many operations happen on this route. It creates an auth document, a user document, a membership document, initiates a Stripe customer, and updates the membership document with that stripe customer ID'
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: 'accepts a username and password'
+          required: true
+          schema:
+            $ref: '#/definitions/CreateAuthBody'
+      responses:
+        '200':
+          description: OK
+        '405':
+          description: Invalid input
+  /subscription:
+    post:
+      tags:
+        - membership
+      summary: Adds a subscription to a user
+      description: 'After submitting a credit card to Stripe, a token and a larger response is sent back the client. With the token, THIS route is able to attach that credit card to the client and create a subscription'
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: 'accepts a token from stripe'
+          required: true
+          schema:
+            $ref: '#/definitions/SubscriptionInput'
+      responses:
+        '200':
+          description: OK
+        '405':
+          description: Invalid input
+  /auth/list:
+    get:
+      tags:
+        - auth
+      summary: Get a list of users
+      description: 'this is an admin only function. lists all Auth documents'
+      operationId: listAuthDocuments
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: 'any key another user document to filter for'
+          required: false
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Membership'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+  /auth:
+    post:
+      tags:
+        - auth
+      summary: Create auth document
+      description: Clients create their own customers
+      operationId: createAuth
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Created auth document
+          required: true
+          schema:
+            $ref: '#/definitions/Auth'
+      responses:
+        '200':
+          description: OK
+    get:
+      tags:
+        - auth
+      summary: Get customer
+      description: ''
+      operationId: getAuth
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: get auth document for a client
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Auth'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: Auth not found
+    put:
+      tags:
+        - auth
+      summary: Update customer data
+      description: This can only be done by the logged in user.
+      operationId: updateAuth
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: ID of the customer that needs to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated customer object
+          required: true
+          schema:
+            $ref: '#/definitions/Auth'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: Auth not found
+    delete:
+      tags:
+        - auth
+      summary: Delete auth document
+      description: Only an admin can do this
+      operationId: deleteAuth
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: A customer that needs to be deleted
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Auth not found
+  /membership/list:
+    get:
+      tags:
+        - membership
+      summary: Get a list of users
+      description: 'this is an admin only function. lists all memberships'
+      operationId: listMemberships
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: 'any key another user document to filter for'
+          required: false
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Membership'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+  /card:
+    get:
+      tags:
+        - membership
+      summary: "Retrieve the client's safe credit card info"
+      description: "Endpoint finds this user's default credit card and returns their address and last 4"
+      operationId: getCard
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Stripe card info
+        '404':
+          description: Not found
+  /membership:
+    get:
+      tags:
+        - membership
+      summary: "Retrieve a client membership"
+      description: "This endpoint behaves differently for admins and clients. Clients can view their own membership, admins may use the query parameters to request details for any membership. All Stripe customer information is appended to the membership when this call is made"
+      operationId: addMembership
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: query
+          name: query
+          description: Any key on the membership document
+          required: true
+          schema:
+            $ref: '#/definitions/Membership'
+      responses:
+        '200':
+          description: The membership document (contains all stripe info)
+          schema:
+            $ref: '#/definitions/Membership'
+        '405':
+          description: Invalid input
+    put:
+      tags:
+        - membership
+      summary: Update an existing membership
+      description: 'This might be an admin only function'
+      operationId: updateMembership
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Keys of the membership object to modify
+          required: true
+          schema:
+            $ref: '#/definitions/Membership'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Membership not found
+        '405':
+          description: Validation exception
+    delete:
+      tags:
+        - membership
+      summary: Delete membership
+      description: Deletes a membership
+      operationId: deleteMembership
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: Any identifying key of a membership to be deleted
+          required: true
+          schema:
+            $ref: '#/definitions/Membership'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+  /stripe/{model}/list:
+    get:
+      tags:
+        - stripe
+      summary: "Retrieve a list of stripe documents of a particular {model} type"
+      description: "This is an admin permissioned endpoint. Gets lists of stripe data"
+      operationId: getStripeDataList
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: path
+          name: model
+          description: One of the Stripe document types
+          required: true
+        - in: query
+          name: query
+          description: Any key on the membership document
+          required: true
+      responses:
+        '200':
+          description: A stripe document list
+        '405':
+          description: Invalid input
+  /stripe/change-card:
+    post:
+      tags:
+        - stripe
+      summary: "Changes the client's default credit card"
+      description: "This endpoint attaches a new payment source, then changes the default source"
+      operationId: changeCreditCard
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: A valid stripe token
+          required: true
+          schema:
+            $ref: '#/definitions/SubscriptionInput'
+      responses:
+        '200':
+          description: A stripe response
+        '405':
+          description: Invalid input
+  /stripe/{model}:
+    get:
+      tags:
+        - stripe
+      summary: "Retrieve a stripe document"
+      description: "This is an admin permissioned endpoint. It allows for the querying of raw stripe data using query parameters"
+      operationId: getStripeData
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: path
+          name: model
+          description: One of the Stripe document types
+          required: true
+        - in: query
+          name: query
+          description: Any key on the membership document
+          required: true
+      responses:
+        '200':
+          description: A stripe response
+        '405':
+          description: Invalid input
+  /user/list:
+    get:
+      tags:
+        - user
+      summary: Get a list of users
+      description: 'this is an admin only function'
+      operationId: listUsers
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: 'The name that needs to be fetched. Use user1 for testing. '
+          required: false
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/User'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+  /user:
+    post:
+      tags:
+        - user
+      summary: Create user document
+      description: 'An administrator can create any user, but a client can only create their own. A client user document is created at register'
+      operationId: createUser
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Created user object
+          required: true
+          schema:
+            $ref: '#/definitions/User'
+      responses:
+        '200':
+          description: OK
+    get:
+      tags:
+        - user
+      summary: Get user by user name
+      description: 'Admin get get any user, Client can only get their own profile'
+      operationId: getUser
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: username
+          in: path
+          description: 'The name that needs to be fetched. Use user1 for testing. '
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/User'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+    put:
+      tags:
+        - user
+      summary: Updated user
+      description: This can only be done by the logged in user. Client updates self, Admin can update anyone.
+      operationId: updateUser
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: username
+          in: path
+          description: name that need to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated user object
+          required: true
+          schema:
+            $ref: '#/definitions/User'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: User not found
+    delete:
+      tags:
+        - user
+      summary: Delete user
+      description: This can only be done by the logged in user. Admin role only.
+      operationId: deleteUser
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: username
+          in: path
+          description: The name that needs to be deleted
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+  /twilio/inbound:
+    post:
+      tags:
+        - communication
+      summary: Receive data from Twilio through this webhook
+      description: The server uses this to decide where to send review requests
+      operationId: twilioWebhook
+      produces:
+        - application/json
+      responses:
+        default:
+          description: successful operation
+  /sms:
+    post:
+      tags:
+        - communication
+      summary: Send an SMS
+      description: Client and Admin role users can use this route to send SMS messages
+      operationId: createSMS
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: An E.164 phone number and message
+          required: true
+          schema:
+            $ref: '#/definitions/SMS'
+      responses:
+        default:
+          description: successful operation
+  /reset-password:
+    post:
+      tags:
+        - communication
+      summary: Sends an email to the user with a link to reset their password
+      description: Any user can use this endpoint.
+      operationId: resetPassword
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: An email address
+          required: true
+          schema:
+            $ref: '#/definitions/ResetPasswordRequest'
+      responses:
+        default:
+          description: OK
+  /comment:
+    post:
+      tags:
+        - communication
+      summary: Sends an email to boastable admin containing a comment from a user
+      description: Any client can use this endpoint.
+      operationId: sendComment
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: A comment from a client
+          required: true
+          schema:
+            $ref: '#/definitions/CommentRequestBody'
+      responses:
+        default:
+          description: OK
+  /question/list:
+    get:
+      tags:
+        - questions
+      summary: List questions
+      description: 'Returns all questions from customers a user is allowed to see or query. Client results will be filtered to only return questions they created'
+      operationId: listAnswers
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: Any key from the customer document
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Answer'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: Action not found
+  /question:
+    post:
+      tags:
+        - questions
+      summary: Create question
+      description: Questions created by clients to get feedback from customers
+      operationId: createQuestion
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Created user object
+          required: true
+          schema:
+            $ref: '#/definitions/Question'
+      responses:
+        default:
+          description: successful operation
+    get:
+      tags:
+        - questions
+      summary: Get question
+      description: ''
+      operationId: getQuestion
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: username
+          in: path
+          description: 'The name that needs to be fetched. Use user1 for testing. '
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/User'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+    put:
+      tags:
+        - questions
+      summary: Updated question
+      description: Update the text of a question
+      operationId: updateQuestion
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: question that needs to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated user object
+          required: true
+          schema:
+            $ref: '#/definitions/Question'
+      responses:
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: User not found
+    delete:
+      tags:
+        - questions
+      summary: Delete question
+      description: Only an admin can do this
+      operationId: deleteQuestion
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: An action that needs to be deleted
+          required: true
+          type: string
+      responses:
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Action not found
+
+  /action/list:
+    get:
+      tags:
+        - actions
+      summary: List actions
+      description: 'Returns all actions from customers a user is allowed to see or query. Client results will be filtered to only return actions from customers they created'
+      operationId: listActions
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: Any key from the customer document
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Action'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: Action not found
+  /action:
+    post:
+      tags:
+        - actions
+      summary: Create action
+      description: This can only be done by the logged in user.
+      operationId: createAction
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Created user object
+          required: true
+          schema:
+            $ref: '#/definitions/Action'
+      responses:
+        default:
+          description: successful operation
+    get:
+      tags:
+        - actions
+      summary: Get actions
+      description: ''
+      operationId: getAction
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: user
+          in: query
+          description: ObjectId string for the desired user (business ID)
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Action'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+    put:
+      tags:
+        - actions
+      summary: Updated action
+      description: Only an admin can do this.
+      operationId: updateAction
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: action that need to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated action object
+          required: true
+          schema:
+            $ref: '#/definitions/Action'
+      responses:
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: User not found
+    delete:
+      tags:
+        - actions
+      summary: Delete actions
+      description: Only an admin can do this
+      operationId: deleteAction
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: An action that needs to be deleted
+          required: true
+          type: string
+      responses:
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Action not found
+  /answer/list:
+    get:
+      tags:
+        - answers
+      summary: List answers
+      description: 'Returns all answers from customers a user is allowed to see or query. Client results will be filtered to only return Customers they created'
+      operationId: listAnswers
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: Any key from the customer document
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Answer'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: Action not found
+  /answer:
+    post:
+      tags:
+        - answers
+      summary: Create answer
+      description: This can only be done by the logged in user.
+      operationId: createAnswer
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Created user object
+          required: true
+          schema:
+            $ref: '#/definitions/Answer'
+      responses:
+        default:
+          description: successful operation
+    get:
+      tags:
+        - answers
+      summary: Get answer
+      description: 'Gets the answer given by a customer'
+      operationId: getAnswer
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: customer
+          in: query
+          description: The customer ID of the user who gave the answer
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Answer'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+    put:
+      tags:
+        - answers
+      summary: Update answer
+      description: This can only be done by the logged in user.
+      operationId: updateAnswer
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: ID of the answer to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated answer
+          required: true
+          schema:
+            $ref: '#/definitions/Answer'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: Answer not found
+    delete:
+      tags:
+        - answers
+      summary: Delete answer
+      description: Only an admin can do this
+      operationId: deleteAnswer
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: id
+          in: query
+          description: Delete an answer given by a customer
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Action not found
+  /customer/list:
+    get:
+      tags:
+        - customers
+      summary: List customers
+      description: 'Returns all customers user is allowed to see or query. Client results will be filtered to only return Customers they created'
+      operationId: listCustomers
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - name: query
+          in: query
+          description: Any key from the customer document
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Customer'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: Action not found
+  /customer:
+    post:
+      tags:
+        - customers
+      summary: Create customer
+      description: Clients create their own customers
+      operationId: createCustomer
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          description: an authorization header
+          example: bearer [insert JWT token here]
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Created user object
+          required: true
+          schema:
+            $ref: '#/definitions/Customer'
+      responses:
+        default:
+          description: successful operation
+    get:
+      tags:
+        - customers
+      summary: Get customer
+      description: 'Customers have a phone number associated with their document. Clients may only request phone numbers for customers they added'
+      operationId: getCustomer
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: query
+          description: The ID of the customer
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Customer'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: Action not found
+    put:
+      tags:
+        - customers
+      summary: Update customer data
+      description: This can only be done by the logged in user.
+      operationId: updateCustomer
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: query
+          description: ID of the customer that needs to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated customer object
+          required: true
+          schema:
+            $ref: '#/definitions/Customer'
+      responses:
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: Action not found
+    delete:
+      tags:
+        - customers
+      summary: Delete customer
+      description: Only an admin can do this
+      operationId: deleteCustomer
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: query
+          description: A customer that needs to be deleted
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Action not found
+definitions:
+  Action:
+    type: object
+    required:
+      - customer
+      - user
+      - action
+    properties:
+      _id:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      customer:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      auth:
+        type: string
+        description: ObjectId, the client authorized to see this customer's information
+        example: 5a2cfe672ebedf740dac80c8
+      action:
+        type: string
+        description: string literal indicating the customer action taken
+        example: WILLING_TO_REVIEW
+  Auth:
+    type: object
+    required:
+      - email
+      - password
+    properties:
+      _id:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      email:
+        type: string
+        example: example@user.com
+      password:
+        type: string
+        description: hash of plaintext password
+  CreateAuthBody:
+    type: object
+    required:
+      - email
+      - password
+    properties:
+      email:
+        type: string
+        description: A valid email address
+        example: example@user.com
+      password:
+        type: string
+        description: hash of plaintext password
+        example: pass123asdf
+  TokenResponse:
+    type: object
+    properties:
+      token:
+        type: string
+        example: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1YjZhMDY2NzNlNmQwZDU1NGNlNDZjZWMiLCJlbWFpbCI6Im5ld0BzdWJzY3JpYmVyLmNvbSIsInJvbGUiOiJjbGllbnQifQ.MHnMzbSPt9Xpyv3kiAeEqTBksj8OXUX_l_Gb9lDZFVc'
+  Customer:
+    type: object
+    required:
+      - email
+      - phone
+    properties:
+      _id:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      auth:
+        type: string
+        description: ObjectId, the client authorized to see this customer's information
+        example: 5a2cfe672ebedf740dac80c8
+      email:
+        type: string
+        example: example@user.com
+      phone:
+        type: string
+        description: An E.164 phone number
+        example: '+15616235746'
+  Membership:
+    type: object
+    required:
+      - customerId
+    properties:
+      _id:
+        type: string
+        description: Mongo document ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      auth:
+        type: string
+        description: Mongo document ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      customerId:
+        type: string
+        description: Stripe customer ID
+        example: cus_DJFcpaSVVzBX8c
+  Question:
+    type: object
+    required:
+      - user
+      - question
+    properties:
+      _id:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      auth:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      question:
+        type: string
+        description: The question being asked
+        example: Was service at our location good?
+  Answer:
+    type: object
+    required:
+      - customer
+      - user
+      - answer
+      - question
+    properties:
+      _id:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      customer:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      auth:
+        type: string
+        description: ObjectId, the client authorized to see this customer's information
+        example: 5a2cfe672ebedf740dac80c8
+      question:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      answer:
+        type: boolean
+        description: A true false answer
+        example: true
+  AnswerBody:
+    type: object
+    properties:
+      customer:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      user:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      question:
+        type: string
+        description: ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      answer:
+        type: boolean
+        description: A true false answer
+        example: true
+  User:
+    type: object
+    required:
+      - auth
+    properties:
+      _id:
+        type: string
+        description: Mongo document ObjectId
+        example: 5a2cfe672ebedf740dac80c8
+      auth:
+        type: string
+        description: ObjectId reference to an Auth document
+        example: 5a2cfe672ebedf740dac80c8
+      first_name:
+        type: string
+        example: Bilbro
+      last_name:
+        type: string
+        example: Baggins
+      phone:
+        type: string
+        description: An E.164 formatted string
+        example: +15615236666
+  ResetPasswordRequest:
+    type: object
+    required:
+      - email
+    properties:
+      email:
+        type: string
+        description: An email address matching an Auth document
+        example: business@boastable.app
+  CommentRequestBody:
+    type: object
+    required:
+      - comment
+    properties:
+      comment:
+        type: string
+        description: A comment from the help section of the website
+        example: How do I create question?
+  SubscriptionInput:
+    type: object
+    required:
+      - source
+    properties:
+      source:
+        type: string
+        description: A stripe payment source token (usually credit card based)
+        example: tok_1CwdYFEiEfPduUnyk9q2GctC
+  SMS:
+    type: object
+    required:
+      - to
+      - message
+    properties:
+      to:
+        type: string
+        description: An E.164 formatted phone number
+        example: +15615236666
+      message:
+        type: string
+        description: ObjectId reference to an Auth document
+        example: 5a2cfe672ebedf740dac80c8
